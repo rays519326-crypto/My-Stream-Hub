@@ -12,6 +12,7 @@
 <body class="p-4 md:p-8">
     <div class="max-w-6xl mx-auto">
         
+        <!-- Header -->
         <header class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8 border-b border-gray-800 pb-6">
             <h1 class="text-3xl font-extrabold text-indigo-500 tracking-wide">AnimeStream</h1>
             <div class="w-full sm:w-72 flex gap-2">
@@ -21,10 +22,18 @@
         </header>
 
         <main>
+            <!-- Sandboxed Cinema Player -->
             <div id="player-container" class="hidden mb-10">
-                <h2 id="playing-title" class="text-xl font-bold mb-3 text-indigo-400">Now Streaming</h2>
+                <div class="flex justify-between items-center mb-3">
+                    <h2 id="playing-title" class="text-xl font-bold text-indigo-400">Now Streaming</h2>
+                    <!-- Server Switcher if one goes down -->
+                    <select id="server-select" class="bg-gray-800 text-xs text-gray-300 rounded px-2 py-1 border border-gray-700 outline-none">
+                        <option value="https://vidsrc.xyz/embed/anime">Server 1 (Primary)</option>
+                        <option value="https://vidsrc.cc/v2/embed/anime">Server 2 (Backup)</option>
+                    </select>
+                </div>
                 <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border-2 border-gray-800 shadow-2xl">
-                    <iframe id="video-player" class="absolute top-0 left-0 w-full h-full" allowfullscreen sandbox="allow-scripts allow-same-origin"></iframe>
+                    <iframe id="video-player" class="absolute top-0 left-0 w-full h-full" allowfullscreen sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
                 </div>
                 <div class="mt-4">
                     <p class="text-sm font-semibold text-gray-400 mb-2">Select Episode:</p>
@@ -32,6 +41,7 @@
                 </div>
             </div>
 
+            <!-- Content Grid Section -->
             <h2 id="section-title" class="text-xl font-bold mb-6 text-gray-300">Top Trending Anime</h2>
             <div id="anime-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5"></div>
         </main>
@@ -39,7 +49,9 @@
 
     <script>
         const JIKAN_API = "https://api.jikan.moe/v4";
-        const STREAM_BASE = "https://vidsrc.to/embed/anime";
+        
+        let currentMalId = null;
+        let currentEpisode = 1;
 
         const searchInput = document.getElementById("search-input");
         const searchBtn = document.getElementById("search-btn");
@@ -49,8 +61,8 @@
         const playingTitle = document.getElementById("playing-title");
         const episodeList = document.getElementById("episode-list");
         const sectionTitle = document.getElementById("section-title");
+        const serverSelect = document.getElementById("server-select");
 
-        // Automatically fetch trending shows on startup
         async function loadTrendingAnime() {
             try {
                 const response = await fetch(`${JIKAN_API}/top/anime?limit=15`);
@@ -61,6 +73,7 @@
 
         searchBtn.addEventListener("click", searchAnime);
         searchInput.addEventListener("keypress", (e) => { if (e.key === "Enter") searchAnime(); });
+        serverSelect.addEventListener("change", updatePlayerSrc);
 
         async function searchAnime() {
             const query = searchInput.value.trim();
@@ -103,8 +116,9 @@
             playingTitle.textContent = `Streaming Now: ${anime.title}`;
             window.scrollTo({ top: 0, behavior: 'smooth' });
             
+            currentMalId = anime.mal_id;
             episodeList.innerHTML = "";
-            const episodesCount = anime.episodes || 12; // Default to 12 if continuous/ongoing
+            const episodesCount = anime.episodes || 24; 
             
             for (let i = 1; i <= episodesCount; i++) {
                 const epButton = document.createElement("button");
@@ -113,17 +127,22 @@
                 epButton.addEventListener("click", () => {
                     Array.from(episodeList.children).forEach(b => b.classList.replace("bg-indigo-600", "bg-gray-800"));
                     epButton.classList.replace("bg-gray-800", "bg-indigo-600");
-                    
-                    // Force the sandboxed stream link
-                    videoPlayer.src = `${STREAM_BASE}/${anime.mal_id}/${i}`;
+                    currentEpisode = i;
+                    updatePlayerSrc();
                 });
                 episodeList.appendChild(epButton);
             }
             if (episodeList.firstChild) episodeList.firstChild.click();
         }
 
+        function updatePlayerSrc() {
+            if (!currentMalId) return;
+            const baseEndpoint = serverSelect.value;
+            videoPlayer.src = `${baseEndpoint}/${currentMalId}/${currentEpisode}`;
+        }
+
         loadTrendingAnime();
     </script>
 </body>
-  </html>
-  
+                    </html>
+    
